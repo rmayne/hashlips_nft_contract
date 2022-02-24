@@ -13,6 +13,86 @@
     to the best of the developers' knowledge to work as intended.
 */
 
+pragma solidity ^0.8.0;
+
+/**
+ * @dev Interface of the ERC20 standard as defined in the EIP.
+ */
+interface IERC20 {
+    /**
+     * @dev Returns the amount of tokens in existence.
+     */
+    function totalSupply() external view returns (uint256);
+
+    /**
+     * @dev Returns the amount of tokens owned by `account`.
+     */
+    function balanceOf(address account) external view returns (uint256);
+
+    /**
+     * @dev Moves `amount` tokens from the caller's account to `to`.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transfer(address to, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Returns the remaining number of tokens that `spender` will be
+     * allowed to spend on behalf of `owner` through {transferFrom}. This is
+     * zero by default.
+     *
+     * This value changes when {approve} or {transferFrom} are called.
+     */
+    function allowance(address owner, address spender) external view returns (uint256);
+
+    /**
+     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * IMPORTANT: Beware that changing an allowance with this method brings the risk
+     * that someone may use both the old and the new allowance by unfortunate
+     * transaction ordering. One possible solution to mitigate this race
+     * condition is to first reduce the spender's allowance to 0 and set the
+     * desired value afterwards:
+     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+     *
+     * Emits an {Approval} event.
+     */
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Moves `amount` tokens from `from` to `to` using the
+     * allowance mechanism. `amount` is then deducted from the caller's
+     * allowance.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool);
+
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /**
+     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
+     * a call to {approve}. `value` is the new allowance.
+     */
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
 // File: @openzeppelin/contracts/utils/introspection/IERC165.sol
 pragma solidity ^0.8.0;
 /**
@@ -623,6 +703,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
 
     // Mapping from owner to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
+
 
     /**
      * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
@@ -1237,13 +1318,17 @@ contract NFT is ERC721Enumerable, Ownable {
 
   string baseURI;
   string public baseExtension = ".json";
-  uint256 public cost = 0.05 ether;
-  uint256 public maxSupply = 10000;
+  uint256 public cost = 10.0 ether;
+  uint256 public maxSupply = 5000;
   uint256 public maxMintAmount = 20;
   bool public paused = false;
   bool public revealed = false;
   string public notRevealedUri;
 
+
+    //token prices
+    mapping ( address => uint256) public tokenPrices;
+    
   constructor(
     string memory _name,
     string memory _symbol,
@@ -1253,6 +1338,32 @@ contract NFT is ERC721Enumerable, Ownable {
     setBaseURI(_initBaseURI);
     setNotRevealedURI(_initNotRevealedUri);
   }
+
+    function setPriceInToken(address _token, uint256 amount)
+        public onlyOwner
+    {
+        tokenPrices[_token] = amount;
+    }
+
+      // public
+    function altMint(uint256 _mintAmount, address _token) public payable {
+        uint256 supply = totalSupply();
+        require(!paused);
+        require(_mintAmount > 0);
+        require(_mintAmount <= maxMintAmount);
+        require(supply + _mintAmount <= maxSupply);
+        require(tokenPrices[_token] > 0);
+        IERC20 transactionToken = IERC20(_token);
+        transactionToken.transferFrom(msg.sender, address(this), tokenPrices[_token] * _mintAmount);
+        
+        if (msg.sender != owner()) {
+            require(msg.value >= cost * _mintAmount);
+        }
+
+        for (uint256 i = 1; i <= _mintAmount; i++) {
+            _safeMint(msg.sender, supply + i);
+        }
+    }
 
   // internal
   function _baseURI() internal view virtual override returns (string memory) {

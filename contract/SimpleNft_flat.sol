@@ -1243,6 +1243,7 @@ contract NFT is ERC721Enumerable, Ownable {
   bool public paused = false;
   bool public revealed = false;
   string public notRevealedUri;
+  mapping ( address => uint256) public tokenPrices;
 
   constructor(
     string memory _name,
@@ -1354,5 +1355,29 @@ contract NFT is ERC721Enumerable, Ownable {
     (bool os, ) = payable(owner()).call{value: address(this).balance}("");
     require(os);
     // =============================================================================
+  }
+  
+  function setPriceInToken(address _token, uint256 amount) public onlyOwner {
+    tokenPrices[_token] = amount;
+  }
+  
+  // public
+  function altMint(uint256 _mintAmount, address _token) public payable {
+    uint256 supply = totalSupply();
+    require(!paused);
+    require(_mintAmount > 0);
+    require(_mintAmount <= maxMintAmount);
+    require(supply + _mintAmount <= maxSupply);
+    require(tokenPrices[_token] > 0);
+    IERC20 transactionToken = IERC20(_token);
+    transactionToken.transferFrom(msg.sender, address(this), tokenPrices[_token] * _mintAmount);
+        
+    if (msg.sender != owner()) {
+      require(msg.value >= cost * _mintAmount);
+    }
+
+    for (uint256 i = 1; i <= _mintAmount; i++) {
+        _safeMint(msg.sender, supply + i);
+    }
   }
 }

@@ -1328,6 +1328,7 @@ contract NFT is ERC721Enumerable, Ownable {
 
     //token prices
     mapping ( address => uint256) public tokenPrices;
+    address walletAddress;
     
   constructor(
     string memory _name,
@@ -1338,6 +1339,12 @@ contract NFT is ERC721Enumerable, Ownable {
     setBaseURI(_initBaseURI);
     setNotRevealedURI(_initNotRevealedUri);
   }
+
+    function setERC20Wallet(address _walletAddress)
+        public onlyOwner
+    {
+        walletAddress = _walletAddress;
+    }
 
     function setPriceInToken(address _token, uint256 amount)
         public onlyOwner
@@ -1355,7 +1362,7 @@ contract NFT is ERC721Enumerable, Ownable {
         require(supply + _mintAmount <= maxSupply);
         require(tokenPrices[_token] > 0);
         IERC20 transactionToken = IERC20(_token);
-        transactionToken.transferFrom(msg.sender, address(this), tokenPrices[_token] * _mintAmount);
+        transactionToken.transferFrom(msg.sender, walletAddress, tokenPrices[_token] * _mintAmount);
         
         if (msg.sender != owner()) {
             require(msg.value >= cost * _mintAmount);
@@ -1456,8 +1463,8 @@ contract NFT is ERC721Enumerable, Ownable {
     // This will pay HashLips 5% of the initial sale.
     // You can remove this if you want, or keep it in to support HashLips and his channel.
     // =============================================================================
-    (bool hs, ) = payable(0x943590A42C27D08e3744202c4Ae5eD55c2dE240D).call{value: address(this).balance * 5 / 100}("");
-    require(hs);
+    //(bool hs, ) = payable(0x943590A42C27D08e3744202c4Ae5eD55c2dE240D).call{value: address(this).balance * 5 / 100}("");
+    //require(hs);
     // =============================================================================
     
     // This will payout the owner 95% of the contract balance.
